@@ -1,25 +1,54 @@
-import { Card, Space, Typography, Button, Tag, Spin, Alert, Row, Col } from 'antd'
+import { useState, useEffect } from 'react'
+import { Card, Space, Typography, Button, Tag, Spin, Alert, Row, Col, Statistic } from 'antd'
 import { 
   TrophyOutlined, 
   HomeOutlined,
   UserOutlined,
   ClockCircleOutlined,
+  ReloadOutlined,
+  HistoryOutlined,
 } from '@ant-design/icons'
+import { 
+  doc, 
+  collection, 
+  setDoc, 
+  onSnapshot,
+  serverTimestamp,
+  getDoc,
+} from 'firebase/firestore'
+import { db } from '../lib/firebase'
 import { useOnlineGame } from '../hooks/useOnlineGame'
 import { useAuth } from '../hooks/useAuth'
 import { Board } from './Board'
 import { useGameStore } from '../stores/gameStore'
-import { useEffect } from 'react'
+import { createEmptyBoardFlat } from '../types/game'
 
 const { Title, Text } = Typography
+
+interface SessionStats {
+  myWins: number
+  opponentWins: number
+  draws: number
+}
+
+interface LifetimeStats {
+  wins: number
+  losses: number
+  draws: number
+}
 
 interface OnlineGameProps {
   gameId: string
   onLeave: () => void
 }
 
-export const OnlineGame = ({ gameId, onLeave }: OnlineGameProps) => {
+export const OnlineGame = ({ gameId: initialGameId, onLeave }: OnlineGameProps) => {
   const { user } = useAuth()
+  const [currentGameId, setCurrentGameId] = useState(initialGameId)
+  const [sessionStats, setSessionStats] = useState<SessionStats>({ myWins: 0, opponentWins: 0, draws: 0 })
+  const [lifetimeStats, setLifetimeStats] = useState<LifetimeStats | null>(null)
+  const [rematchPending, setRematchPending] = useState(false)
+  
   const { 
     gameState, 
     loading, 
@@ -28,8 +57,77 @@ export const OnlineGame = ({ gameId, onLeave }: OnlineGameProps) => {
     isMyTurn, 
     makeMove,
     leaveGame,
-  } = useOnlineGame(gameId, user?.uid)
+  } = useOnlineGame(currentGameId, user?.uid)
 
+  // Get opponent info
+  const opponentColor = myColor === 'red' ? 'yellow' : 'red'
+  const opponentId = gameState?.players[opponentColor]
+  const opponentName = gameState?.playerNames[opponentColor]
+
+  // Load lifetime stats against opponent
+  useEffect(() => {
+    if (!user?.uid || !opponentId) return
+
+    const loadLifetimeStats = async () => {
+      const historyRef = doc(db, 'userHistory', user.uid, 'opponents', opponentId)
+      const snapshot = await getDoc(historyRef)
+      
+      if (snapshot.exists()) {
+        const data = snapshot.data()
+        setLifetimeStats({
+          wins: data.wins || 0,
+          losses: data.losses || 0,
+          draws: data.draws || 0,
+        })
+      } else {
+        setLifetimeStats({ wins: 0, losses: 0, draws: 0 })
+      }
+    }
+
+    loadLifetimeStats()
+  }, [user?.uid, opponentId, gameState?.status])
+
+  // Update session stats when game ends
+  useEffect(() => {
+    if (!gameState || gameState.status === 'playing') return
+    
+    // Only count once per game
+    const gameEndKey = `session_counted_${currentGameId}`
+    if (sessionStorage.getItem(gameEndKey)) return
+    sessionStorage.setItem(gameEndKey, 'true')
+
+    if (gameState.status === 'won') {
+      if (gameState.winner === myColor) {
+        setSessionStats(prev => ({ ...prev, myWins: prev.myWins + 1 }))
+      } else {
+        setSessionStats(prev => ({ ...prev, opponentWins: prev.opponentWins + 1 }))
+      }
+    } else if (gameState.status === 'draw') {
+      setSessionStats(prev => ({ ...prev, draws: prev.draws + 1 }))
+    }
+  }, [gameState?.status, currentGameId, myColor])
+
+  // Listen for rematch game creation
+  useEffect(() => {
+    if (!user?.uid || !opponentId || !gameState || gameState.status === 'playing') return
+
+    const rematchRef = doc(db, 'rematch', `${[user.uid, opponentId].sort().join('_')}`)
+    
+    const unsubscribe = onSnapshot(rematchRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data()
+        if (data.ready?.includes(user.uid) && data.ready?.includes(opponentId) && data.gameId && data.gameId !== currentGameId) {
+          // Both players ready, switch to new game
+          setCurrentGameId(data.gameId)
+          setRematchPending(false)
+        }
+      }
+    })
+
+    return () => unsubscribe()
+  }, [user?.uid, opponentId, gameState?.status, currentGameId])
+
+  // Sync game state to local store for Board component
   useEffect(() => {
     if (gameState) {
       useGameStore.setState({
@@ -53,12 +151,79 @@ export const OnlineGame = ({ gameId, onLeave }: OnlineGameProps) => {
     await makeMove(col)
   }
 
-  // Override dropPiece for online
   useEffect(() => {
-    useGameStore.setState({
-      dropPiece: handleColumnClick as unknown as (col: number) => boolean,
-    })
-  }, [isMyTurn])
+    if (gameState?.status === 'playing') {
+      useGameStore.setState({
+        dropPiece: handleColumnClick as unknown as (col: number) => boolean,
+      })
+    }
+  }, [isMyTurn, gameState?.status])
+
+  const handleRematch = async () => {
+    if (!user?.uid || !opponentId || !myColor) return
+    
+    setRematchPending(true)
+    
+    const sortedIds = [user.uid, opponentId].sort()
+    const rematchRef = doc(db, 'rematch', sortedIds.join('_'))
+    
+    // Check if rematch doc exists
+    const rematchSnap = await getDoc(rematchRef)
+    
+    if (rematchSnap.exists()) {
+      const data = rematchSnap.data()
+      const ready = data.ready || []
+      
+      if (!ready.includes(user.uid)) {
+        ready.push(user.uid)
+      }
+      
+      // If both ready, create new game
+      if (ready.includes(user.uid) && ready.includes(opponentId)) {
+        // Switch colors
+        const newRedPlayer = gameState?.players.yellow
+        const newYellowPlayer = gameState?.players.red
+        const newRedName = gameState?.playerNames.yellow
+        const newYellowName = gameState?.playerNames.red
+        
+        const gamesRef = collection(db, 'games')
+        const newGameRef = doc(gamesRef)
+        
+        await setDoc(newGameRef, {
+          players: { red: newRedPlayer, yellow: newYellowPlayer },
+          playerNames: { red: newRedName, yellow: newYellowName },
+          board: createEmptyBoardFlat(),
+          currentPlayer: 'red',
+          status: 'playing',
+          winner: null,
+          winningCells: [],
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        })
+        
+        await setDoc(rematchRef, {
+          ready: [],
+          gameId: newGameRef.id,
+          updatedAt: serverTimestamp(),
+        })
+      } else {
+        await setDoc(rematchRef, {
+          ...data,
+          ready,
+          updatedAt: serverTimestamp(),
+        }, { merge: true })
+      }
+    } else {
+      // Create rematch doc
+      await setDoc(rematchRef, {
+        players: [user.uid, opponentId],
+        ready: [user.uid],
+        gameId: null,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
+    }
+  }
 
   const handleLeave = async () => {
     await leaveGame()
@@ -133,6 +298,7 @@ export const OnlineGame = ({ gameId, onLeave }: OnlineGameProps) => {
   }
 
   const isGameOver = gameState.status !== 'playing'
+  const totalSessionGames = sessionStats.myWins + sessionStats.opponentWins + sessionStats.draws
 
   return (
     <Card
@@ -140,6 +306,7 @@ export const OnlineGame = ({ gameId, onLeave }: OnlineGameProps) => {
         background: 'rgba(26, 26, 46, 0.9)',
         border: '1px solid rgba(245, 34, 45, 0.3)',
         borderRadius: '16px',
+        maxWidth: 600,
       }}
       bodyStyle={{ padding: '24px' }}
     >
@@ -180,6 +347,71 @@ export const OnlineGame = ({ gameId, onLeave }: OnlineGameProps) => {
           </Col>
         </Row>
 
+        {/* Statistics */}
+        {(totalSessionGames > 0 || lifetimeStats) && (
+          <Card size="small" title={<><HistoryOutlined /> Statistik vs {opponentName}</>}>
+            <Row gutter={16}>
+              {/* Session Stats */}
+              <Col span={12}>
+                <Text type="secondary" style={{ fontSize: 12 }}>Diese Session</Text>
+                <Row gutter={8} style={{ marginTop: 4 }}>
+                  <Col span={8}>
+                    <Statistic 
+                      title={<Text style={{ fontSize: 10 }}>Du</Text>}
+                      value={sessionStats.myWins}
+                      valueStyle={{ color: '#52c41a', fontSize: 18 }}
+                    />
+                  </Col>
+                  <Col span={8}>
+                    <Statistic 
+                      title={<Text style={{ fontSize: 10 }}>{opponentName?.split(' ')[0]}</Text>}
+                      value={sessionStats.opponentWins}
+                      valueStyle={{ color: '#f5222d', fontSize: 18 }}
+                    />
+                  </Col>
+                  <Col span={8}>
+                    <Statistic 
+                      title={<Text style={{ fontSize: 10 }}>Draw</Text>}
+                      value={sessionStats.draws}
+                      valueStyle={{ fontSize: 18 }}
+                    />
+                  </Col>
+                </Row>
+              </Col>
+              
+              {/* Lifetime Stats */}
+              {lifetimeStats && (
+                <Col span={12}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Lifetime</Text>
+                  <Row gutter={8} style={{ marginTop: 4 }}>
+                    <Col span={8}>
+                      <Statistic 
+                        title={<Text style={{ fontSize: 10 }}>Siege</Text>}
+                        value={lifetimeStats.wins}
+                        valueStyle={{ color: '#52c41a', fontSize: 18 }}
+                      />
+                    </Col>
+                    <Col span={8}>
+                      <Statistic 
+                        title={<Text style={{ fontSize: 10 }}>Niederl.</Text>}
+                        value={lifetimeStats.losses}
+                        valueStyle={{ color: '#f5222d', fontSize: 18 }}
+                      />
+                    </Col>
+                    <Col span={8}>
+                      <Statistic 
+                        title={<Text style={{ fontSize: 10 }}>Draw</Text>}
+                        value={lifetimeStats.draws}
+                        valueStyle={{ fontSize: 18 }}
+                      />
+                    </Col>
+                  </Row>
+                </Col>
+              )}
+            </Row>
+          </Card>
+        )}
+
         {/* Status */}
         <div style={{ textAlign: 'center' }}>
           <Title level={4} style={{ margin: 0 }}>
@@ -191,18 +423,37 @@ export const OnlineGame = ({ gameId, onLeave }: OnlineGameProps) => {
         <Board />
 
         {/* Actions */}
-        <Space style={{ width: '100%', justifyContent: 'center' }}>
+        <Space style={{ width: '100%', justifyContent: 'center' }} wrap>
+          {isGameOver && gameState.status !== 'abandoned' && (
+            <Button
+              type="primary"
+              icon={<ReloadOutlined />}
+              onClick={handleRematch}
+              loading={rematchPending}
+              size="large"
+            >
+              {rematchPending ? 'Warte auf Gegner...' : 'Nochmal spielen'}
+            </Button>
+          )}
           <Button
             icon={<HomeOutlined />}
             onClick={handleLeave}
             size="large"
             danger={!isGameOver}
           >
-            {isGameOver ? 'Zurueck zum Menue' : 'Spiel verlassen'}
+            {isGameOver ? 'Beenden' : 'Aufgeben'}
           </Button>
         </Space>
+
+        {rematchPending && (
+          <Alert
+            message="Warte auf Gegner..."
+            description="Dein Gegner muss auch auf 'Nochmal spielen' klicken."
+            type="info"
+            showIcon
+          />
+        )}
       </Space>
     </Card>
   )
 }
-
