@@ -46,3 +46,16 @@ export const createEmptyBoardFlat = (): Cell[] => {
   return Array(ROWS * COLS).fill(null)
 }
 
+// Serialize winningCells for Firestore (no nested arrays allowed)
+export const serializeWinningCells = (cells: [number, number][]): number[] => {
+  return cells.flatMap(([row, col]) => [row, col])
+}
+
+export const deserializeWinningCells = (flat: number[]): [number, number][] => {
+  const cells: [number, number][] = []
+  for (let i = 0; i < flat.length; i += 2) {
+    cells.push([flat[i], flat[i + 1]])
+  }
+  return cells
+}
+

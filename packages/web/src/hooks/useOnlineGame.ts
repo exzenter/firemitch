@@ -9,9 +9,9 @@ import {
   getDoc,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
-import { Board, Player, Cell, ROWS, COLS, WIN_LENGTH, deserializeBoard, serializeBoard } from '../types/game'
+import { Board, Player, Cell, ROWS, COLS, WIN_LENGTH, deserializeBoard, serializeBoard, serializeWinningCells, deserializeWinningCells } from '../types/game'
 
-// Firestore stores flat array, we convert to 2D for internal use
+// Firestore stores flat arrays, we convert to proper format for internal use
 interface FirestoreGameData {
   players: { red: string; yellow: string }
   playerNames: { red: string; yellow: string }
@@ -19,7 +19,7 @@ interface FirestoreGameData {
   currentPlayer: Player
   status: 'playing' | 'won' | 'draw' | 'abandoned'
   winner: Player | null
-  winningCells: [number, number][]
+  winningCells: number[] // Flat array [row1, col1, row2, col2, ...]
 }
 
 interface OnlineGameState {
@@ -115,10 +115,11 @@ export const useOnlineGame = (
       (snapshot) => {
         if (snapshot.exists()) {
           const data = snapshot.data() as FirestoreGameData
-          // Convert flat board to 2D
+          // Convert flat arrays to proper format
           setGameState({
             ...data,
             board: deserializeBoard(data.board),
+            winningCells: deserializeWinningCells(data.winningCells || []),
           })
         } else {
           setError('Spiel nicht gefunden')
@@ -198,9 +199,9 @@ export const useOnlineGame = (
 
     if (winningCells) {
       await updateDoc(gameRef, {
-        board: serializeBoard(newBoard), // Serialize for Firestore
+        board: serializeBoard(newBoard),
         winner: myColor,
-        winningCells,
+        winningCells: serializeWinningCells(winningCells), // Serialize for Firestore
         status: 'won',
         updatedAt: serverTimestamp(),
       })
