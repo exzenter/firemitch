@@ -1,0 +1,29 @@
+{
+  "name": "firemitch",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "functions"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @firemitch/web",
+    "build": "npm run build -w @firemitch/web && npm run build -w functions",
+    "build:web": "npm run build -w @firemitch/web",
+    "build:functions": "npm run build -w functions",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test -w @firemitch/web",
+    "test:e2e": "npm run test:e2e -w @firemitch/web",
+    "emulators": "firebase emulators:start",
+    "deploy": "firebase deploy",
+    "deploy:hosting": "firebase deploy --only hosting",
+    "deploy:functions": "firebase deploy --only functions"
+  },
+  "devDependencies": {
+    "firebase-tools": "^13.29.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
+
