@@ -42,5 +42,21 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.uid == odg;
       allow write: if request.auth != null;
     }
+    
+    // Pair chats (shared text field between player pairs)
+    match /pairChats/{pairId} {
+      // Helper function to check if user is part of the pair
+      function isPairMember() {
+        let players = pairId.split('_');
+        return request.auth != null && (
+          request.auth.uid == players[0] || 
+          request.auth.uid == players[1]
+        );
+      }
+      allow read: if isPairMember();
+      allow create: if isPairMember();
+      allow update: if isPairMember();
+      allow delete: if false; // Chats sollen nicht gelöscht werden
+    }
   }
 }
