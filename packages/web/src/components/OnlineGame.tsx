@@ -14,7 +14,6 @@ import {
   setDoc, 
   onSnapshot,
   serverTimestamp,
-  getDoc,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useOnlineGame } from '../hooks/useOnlineGame'
@@ -64,14 +63,13 @@ export const OnlineGame = ({ gameId: initialGameId, onLeave }: OnlineGameProps) 
   const opponentId = gameState?.players[opponentColor]
   const opponentName = gameState?.playerNames[opponentColor]
 
-  // Load lifetime stats against opponent
+  // Load lifetime stats against opponent (realtime listener)
   useEffect(() => {
     if (!user?.uid || !opponentId) return
 
-    const loadLifetimeStats = async () => {
-      const historyRef = doc(db, 'userHistory', user.uid, 'opponents', opponentId)
-      const snapshot = await getDoc(historyRef)
-      
+    const historyRef = doc(db, 'userHistory', user.uid, 'opponents', opponentId)
+    
+    const unsubscribe = onSnapshot(historyRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data()
         setLifetimeStats({
@@ -82,10 +80,10 @@ export const OnlineGame = ({ gameId: initialGameId, onLeave }: OnlineGameProps) 
       } else {
         setLifetimeStats({ wins: 0, losses: 0, draws: 0 })
       }
-    }
+    })
 
-    loadLifetimeStats()
-  }, [user?.uid, opponentId, gameState?.status])
+    return () => unsubscribe()
+  }, [user?.uid, opponentId])
 
   // Update session stats when game ends
   useEffect(() => {
