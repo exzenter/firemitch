@@ -9,12 +9,23 @@ import {
   getDoc,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
-import { Board, Player, ROWS, COLS, WIN_LENGTH } from '../types/game'
+import { Board, Player, Cell, ROWS, COLS, WIN_LENGTH, deserializeBoard, serializeBoard } from '../types/game'
+
+// Firestore stores flat array, we convert to 2D for internal use
+interface FirestoreGameData {
+  players: { red: string; yellow: string }
+  playerNames: { red: string; yellow: string }
+  board: Cell[] // Flat array in Firestore
+  currentPlayer: Player
+  status: 'playing' | 'won' | 'draw' | 'abandoned'
+  winner: Player | null
+  winningCells: [number, number][]
+}
 
 interface OnlineGameState {
   players: { red: string; yellow: string }
   playerNames: { red: string; yellow: string }
-  board: Board
+  board: Board // 2D array for internal use
   currentPlayer: Player
   status: 'playing' | 'won' | 'draw' | 'abandoned'
   winner: Player | null
@@ -103,7 +114,12 @@ export const useOnlineGame = (
       gameRef,
       (snapshot) => {
         if (snapshot.exists()) {
-          setGameState(snapshot.data() as OnlineGameState)
+          const data = snapshot.data() as FirestoreGameData
+          // Convert flat board to 2D
+          setGameState({
+            ...data,
+            board: deserializeBoard(data.board),
+          })
         } else {
           setError('Spiel nicht gefunden')
         }
@@ -182,7 +198,7 @@ export const useOnlineGame = (
 
     if (winningCells) {
       await updateDoc(gameRef, {
-        board: newBoard,
+        board: serializeBoard(newBoard), // Serialize for Firestore
         winner: myColor,
         winningCells,
         status: 'won',
@@ -204,7 +220,7 @@ export const useOnlineGame = (
 
     if (isDraw) {
       await updateDoc(gameRef, {
-        board: newBoard,
+        board: serializeBoard(newBoard), // Serialize for Firestore
         status: 'draw',
         updatedAt: serverTimestamp(),
       })
@@ -220,7 +236,7 @@ export const useOnlineGame = (
     }
 
     await updateDoc(gameRef, {
-      board: newBoard,
+      board: serializeBoard(newBoard), // Serialize for Firestore
       currentPlayer: myColor === 'red' ? 'yellow' : 'red',
       updatedAt: serverTimestamp(),
     })
@@ -248,4 +264,3 @@ export const useOnlineGame = (
     leaveGame,
   }
 }
-

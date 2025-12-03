@@ -14,7 +14,7 @@ import {
   Timestamp,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
-import { createEmptyBoard } from '../types/game'
+import { createEmptyBoardFlat } from '../types/game'
 
 interface MatchmakingEntry {
   odg: string
@@ -139,7 +139,7 @@ export const useMatchmaking = (
           transaction.set(newGameRef, {
             players: { red: redPlayer, yellow: yellowPlayer },
             playerNames: { red: redName, yellow: yellowName },
-            board: createEmptyBoard(),
+            board: createEmptyBoardFlat(),
             currentPlayer: 'red',
             status: 'playing',
             winner: null,

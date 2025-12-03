@@ -29,3 +29,20 @@ export const createEmptyBoard = (): Board => {
     .map(() => Array(COLS).fill(null))
 }
 
+// Firestore doesn't support nested arrays, so we flatten the board
+export const serializeBoard = (board: Board): Cell[] => {
+  return board.flat()
+}
+
+export const deserializeBoard = (flat: Cell[]): Board => {
+  const board: Board = []
+  for (let row = 0; row < ROWS; row++) {
+    board.push(flat.slice(row * COLS, (row + 1) * COLS))
+  }
+  return board
+}
+
+export const createEmptyBoardFlat = (): Cell[] => {
+  return Array(ROWS * COLS).fill(null)
+}
+
