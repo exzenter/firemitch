@@ -1,43 +1,69 @@
+// =============================================================================
+// REACT KOMPONENTE - ModeSelect (Modus-Auswahl)
+// =============================================================================
+// Der Startbildschirm der App.
+// Zeigt zwei Karten: Lokal spielen vs Online spielen.
+// Zeigt auch User-Info und Statistiken wenn eingeloggt.
+
 import { Card, Button, Space, Typography, Row, Col, Badge, Collapse, Table } from 'antd'
 import { 
-  DesktopOutlined, 
-  GlobalOutlined, 
+  DesktopOutlined,    // Icon für lokales Spiel
+  GlobalOutlined,     // Icon für Online-Spiel
   UserOutlined,
   LogoutOutlined,
   TrophyOutlined,
   HistoryOutlined,
 } from '@ant-design/icons'
+
+// HOOKS
 import { useAuth } from '../hooks/useAuth'
 import { useOpponentHistory } from '../hooks/useOpponentHistory'
 
 const { Title, Text } = Typography
 
+// -----------------------------------------------------------------------------
+// PROPS INTERFACE
+// -----------------------------------------------------------------------------
+// Diese Komponente erwartet 3 Callback-Funktionen von der Parent-Komponente
+
 interface ModeSelectProps {
-  onSelectLocal: () => void
-  onSelectOnline: () => void
-  onShowAuth: () => void
+  onSelectLocal: () => void   // Wird aufgerufen wenn "Lokal" gewählt wird
+  onSelectOnline: () => void  // Wird aufgerufen wenn "Online" gewählt wird
+  onShowAuth: () => void      // Wird aufgerufen wenn Auth-Modal gezeigt werden soll
 }
 
+// -----------------------------------------------------------------------------
+// DIE KOMPONENTE
+// -----------------------------------------------------------------------------
 export const ModeSelect = ({ onSelectLocal, onSelectOnline, onShowAuth }: ModeSelectProps) => {
+  // Auth-Daten aus Hook
   const { user, profile, logout, loading } = useAuth()
+  
+  // Gegner-Historie laden (nur wenn eingeloggt)
+  // Optional Chaining: user?.uid ist undefined wenn user null ist
   const { opponents } = useOpponentHistory(user?.uid)
 
   return (
     <Card style={{ maxWidth: 600, width: '100%' }}>
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        
+        {/* ===== HEADER ===== */}
         <div style={{ textAlign: 'center' }}>
           <Title level={2} style={{ margin: 0 }}>4 Gewinnt</Title>
           <Text type="secondary">Waehle einen Spielmodus</Text>
         </div>
 
-        {/* User Info */}
+        {/* ===== USER INFO (wenn eingeloggt) ===== */}
+        {/* CONDITIONAL RENDERING: Nur zeigen wenn user UND profile existieren */}
         {user && profile && (
           <Card size="small" style={{ background: '#fafafa' }}>
+            {/* Row mit justify="space-between" schiebt Kinder an die Enden */}
             <Row justify="space-between" align="middle">
               <Col>
                 <Space>
                   <UserOutlined />
                   <Text strong>{profile.displayName}</Text>
+                  {/* Badge zeigt kleine Info-Labels */}
                   <Badge 
                     count={`${profile.stats.wins}W / ${profile.stats.losses}L`} 
                     style={{ backgroundColor: '#52c41a' }}
@@ -58,11 +84,13 @@ export const ModeSelect = ({ onSelectLocal, onSelectOnline, onShowAuth }: ModeSe
           </Card>
         )}
 
-        <Row gutter={[16, 16]}>
-          {/* Local Mode */}
-          <Col xs={24} sm={12}>
+        {/* ===== MODUS-AUSWAHL KARTEN ===== */}
+        <Row gutter={[16, 16]}>  {/* gutter = Abstände zwischen Spalten */}
+          
+          {/* --- LOKAL MODUS --- */}
+          <Col xs={24} sm={12}>  {/* xs=24 (volle Breite mobil), sm=12 (halbe Breite desktop) */}
             <Card
-              hoverable
+              hoverable  // Hover-Effekt aktivieren
               onClick={onSelectLocal}
               style={{ textAlign: 'center', height: '100%' }}
             >
@@ -77,10 +105,12 @@ export const ModeSelect = ({ onSelectLocal, onSelectOnline, onShowAuth }: ModeSe
             </Card>
           </Col>
 
-          {/* Online Mode */}
+          {/* --- ONLINE MODUS --- */}
           <Col xs={24} sm={12}>
             <Card
               hoverable
+              // CONDITIONAL HANDLER
+              // Wenn user existiert: Online gehen, sonst Auth zeigen
               onClick={user ? onSelectOnline : onShowAuth}
               style={{ textAlign: 'center', height: '100%' }}
             >
@@ -88,6 +118,7 @@ export const ModeSelect = ({ onSelectLocal, onSelectOnline, onShowAuth }: ModeSe
                 <GlobalOutlined style={{ fontSize: 48, color: '#52c41a' }} />
                 <Title level={4} style={{ margin: 0 }}>Online</Title>
                 <Text type="secondary">2 Spieler, 2 Geraete</Text>
+                {/* Unterschiedlicher Text je nach Login-Status */}
                 {!user ? (
                   <Text type="warning" style={{ fontSize: 12 }}>
                     Anmeldung erforderlich
@@ -102,11 +133,12 @@ export const ModeSelect = ({ onSelectLocal, onSelectOnline, onShowAuth }: ModeSe
           </Col>
         </Row>
 
-        {/* Stats for logged in users */}
+        {/* ===== STATISTIK (wenn eingeloggt) ===== */}
         {user && profile && (
           <Card size="small" title={<><TrophyOutlined /> Deine Statistik</>}>
             <Row gutter={16}>
               <Col span={8} style={{ textAlign: 'center' }}>
+                {/* Text mit type="success" ist grün */}
                 <Text type="success" style={{ fontSize: 24, fontWeight: 'bold' }}>
                   {profile.stats.wins}
                 </Text>
@@ -131,33 +163,59 @@ export const ModeSelect = ({ onSelectLocal, onSelectOnline, onShowAuth }: ModeSe
           </Card>
         )}
 
-        {/* Opponent History */}
+        {/* ===== GEGNER-HISTORIE (wenn vorhanden) ===== */}
+        {/* .length > 0 prüft ob Array Elemente hat */}
         {user && opponents.length > 0 && (
+          // Collapse ist ein Akkordeon-Element
           <Collapse 
             items={[{
               key: 'history',
+              // Template Literal für dynamischen Label-Text
               label: <><HistoryOutlined /> Gegner-Historie ({opponents.length})</>,
               children: (
+                // ANT DESIGN TABLE
+                // Zeigt Daten in einer Tabelle
                 <Table
-                  dataSource={opponents}
-                  columns={[
+                  dataSource={opponents}  // Die Daten
+                  columns={[  // Spalten-Definition
                     { title: 'Gegner', dataIndex: 'opponentName', key: 'name' },
-                    { title: 'Siege', dataIndex: 'wins', key: 'wins', render: (v: number) => <Text type="success">{v}</Text> },
-                    { title: 'Niederlagen', dataIndex: 'losses', key: 'losses', render: (v: number) => <Text type="danger">{v}</Text> },
-                    { title: 'Bilanz', key: 'diff', render: (_: unknown, r: { wins: number; losses: number }) => {
-                      const diff = r.wins - r.losses
-                      return <Text type={diff > 0 ? 'success' : diff < 0 ? 'danger' : undefined}>{diff > 0 ? '+' : ''}{diff}</Text>
-                    }},
+                    { 
+                      title: 'Siege', 
+                      dataIndex: 'wins', 
+                      key: 'wins', 
+                      // render erlaubt custom JSX für Zellen
+                      render: (v: number) => <Text type="success">{v}</Text> 
+                    },
+                    { 
+                      title: 'Niederlagen', 
+                      dataIndex: 'losses', 
+                      key: 'losses', 
+                      render: (v: number) => <Text type="danger">{v}</Text> 
+                    },
+                    { 
+                      title: 'Bilanz', 
+                      key: 'diff', 
+                      // render mit zwei Parametern: value, record (ganze Zeile)
+                      render: (_: unknown, r: { wins: number; losses: number }) => {
+                        const diff = r.wins - r.losses
+                        return (
+                          <Text type={diff > 0 ? 'success' : diff < 0 ? 'danger' : undefined}>
+                            {diff > 0 ? '+' : ''}{diff}
+                          </Text>
+                        )
+                      }
+                    },
                   ]}
-                  rowKey="odg"
+                  rowKey="odg"  // Eindeutiger Schlüssel für jede Zeile
                   size="small"
-                  pagination={false}
+                  pagination={false}  // Keine Seitennavigation
                 />
               ),
             }]}
           />
         )}
 
+        {/* ===== LOGIN-HINWEIS (wenn nicht eingeloggt) ===== */}
         {!user && (
           <div style={{ textAlign: 'center' }}>
             <Button type="link" onClick={onShowAuth}>
@@ -169,4 +227,3 @@ export const ModeSelect = ({ onSelectLocal, onSelectOnline, onShowAuth }: ModeSe
     </Card>
   )
 }
-
