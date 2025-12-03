@@ -18,13 +18,13 @@ import {
   increment,
   getDoc,
 } from 'firebase/firestore'
-import { db } from '../lib/firebase'
-import { useOnlineGame } from '../hooks/useOnlineGame'
-import { useAuth } from '../hooks/useAuth'
+import { db } from '../../lib/firebase'
+import { useOnlineGame } from '../../hooks/useOnlineGame'
+import { useAuth } from '../../hooks/useAuth'
 import { Board } from './Board'
-import { PairChat } from './PairChat'
-import { useGameStore } from '../stores/gameStore'
-import { createEmptyBoardFlat } from '../types/game'
+import { useGameStore } from '../../stores/gameStore'
+import { createEmptyBoardFlat } from '../../types/game'
+import { PairChat } from '../Chat/PairChat'
 
 const { Title, Text } = Typography
 
@@ -66,11 +66,6 @@ export const OnlineGame = ({ gameId: initialGameId, onLeave }: OnlineGameProps) 
   const opponentColor = myColor === 'red' ? 'yellow' : 'red'
   const opponentId = gameState?.players[opponentColor]
   const opponentName = gameState?.playerNames[opponentColor]
-
-  // Calculate pair ID for shared chat (sorted UIDs, same as rematch)
-  const pairId = user?.uid && opponentId 
-    ? [user.uid, opponentId].sort().join('_')
-    : null
 
   // Load lifetime stats against opponent (realtime listener)
   useEffect(() => {
@@ -353,7 +348,7 @@ export const OnlineGame = ({ gameId: initialGameId, onLeave }: OnlineGameProps) 
         borderRadius: '16px',
         maxWidth: 600,
       }}
-      bodyStyle={{ padding: '24px' }}
+      styles={{ body: { padding: '24px' } }}
     >
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
         {/* Player Info */}
@@ -467,12 +462,13 @@ export const OnlineGame = ({ gameId: initialGameId, onLeave }: OnlineGameProps) 
         {/* Board */}
         <Board />
 
-        {/* Shared Text Field */}
-        {pairId && (
-          <PairChat 
-            pairId={pairId}
-            currentUid={user?.uid}
+        {/* Pair Chat */}
+        {user?.uid && opponentId && myColor && (
+          <PairChat
+            pairId={[user.uid, opponentId].sort().join('_')}
+            currentUid={user.uid}
             myColor={myColor}
+            opponentUid={opponentId}
           />
         )}
 

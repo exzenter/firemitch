@@ -11,6 +11,7 @@
 import { create } from 'zustand'  // Die Hauptfunktion von Zustand
 import { 
   Board, 
+  Cell,
   Player, 
   GameStatus, 
   createEmptyBoard, 
@@ -65,49 +66,12 @@ interface GameStore {
 }
 
 // -----------------------------------------------------------------------------
-// STORE ERSTELLEN MIT ZUSTAND
+// ORIGINALE DROP PIECE FUNKTION SPEICHERN
 // -----------------------------------------------------------------------------
-// create<GameStore>() ist ein GENERIC: Wir sagen Zustand welchen Typ der Store hat.
-// Die Funktion bekommt zwei Parameter:
-// - set: Funktion um den State zu ändern
-// - get: Funktion um den aktuellen State zu lesen
-
-export const useGameStore = create<GameStore>((set, get) => ({
-  // === INITIALER STATE ===
-  // Diese Werte werden beim App-Start gesetzt
-  board: createEmptyBoard(),
-  currentPlayer: 'red',
-  winner: null,
-  winningCells: [],
-  status: 'waiting',
-  players: { red: '', yellow: '' },
-  stats: { red: 0, yellow: 0, draws: 0 },
-  gameStarted: false,
-  
-  // === ACTION: Spielernamen setzen ===
-  setPlayers: (redName: string, yellowName: string) => {
-    // set() aktualisiert den State
-    // Wir übergeben ein Objekt mit den zu ändernden Werten
-    set({
-      players: { red: redName, yellow: yellowName },
-    })
-  },
-  
-  // === ACTION: Spiel starten ===
-  startGame: () => {
-    set({
-      gameStarted: true,
-      status: 'playing',
-      board: createEmptyBoard(),
-      currentPlayer: 'red',
-      winner: null,
-      winningCells: [],
-    })
-  },
-  
-  // === ACTION: Spielstein einwerfen ===
-  // Dies ist die Hauptlogik des Spiels
-  dropPiece: (col: number) => {
+// Diese Funktion wird außerhalb des Stores definiert, damit wir sie
+// wiederherstellen können, falls sie von OnlineGame überschrieben wurde
+const createLocalDropPiece = (set: any, get: any): ((col: number) => boolean) => {
+  return (col: number) => {
     // get() holt den aktuellen State
     const { board, currentPlayer, status } = get()
     
@@ -130,8 +94,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Neues Board erstellen (IMMUTABILITY!)
     // In React/Zustand ändern wir State nie direkt, sondern erstellen Kopien
     // .map() erstellt ein neues Array
-    const newBoard = board.map((row, rowIndex) =>
-      row.map((cell, colIndex) =>
+    const newBoard = board.map((row: Cell[], rowIndex: number) =>
+      row.map((cell: Cell, colIndex: number) =>
         // Ternary Operator: condition ? ifTrue : ifFalse
         rowIndex === targetRow && colIndex === col ? currentPlayer : cell
       )
@@ -159,7 +123,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
     
     // Unentschieden prüfen: Ist die oberste Reihe voll?
-    const isDraw = newBoard[0].every(cell => cell !== null)
+    const isDraw = newBoard[0].every((cell: Cell) => cell !== null)
     
     if (isDraw) {
       const { stats } = get()
@@ -182,7 +146,62 @@ export const useGameStore = create<GameStore>((set, get) => ({
     })
     
     return true
-  },
+  }
+}
+
+// -----------------------------------------------------------------------------
+// STORE ERSTELLEN MIT ZUSTAND
+// -----------------------------------------------------------------------------
+// create<GameStore>() ist ein GENERIC: Wir sagen Zustand welchen Typ der Store hat.
+// Die Funktion bekommt zwei Parameter:
+// - set: Funktion um den State zu ändern
+// - get: Funktion um den aktuellen State zu lesen
+
+export const useGameStore = create<GameStore>((set, get) => {
+  // Originale dropPiece Funktion erstellen
+  const localDropPiece = createLocalDropPiece(set, get)
+  
+  return {
+    // === INITIALER STATE ===
+    // Diese Werte werden beim App-Start gesetzt
+    board: createEmptyBoard(),
+    currentPlayer: 'red',
+    winner: null,
+    winningCells: [],
+    status: 'waiting',
+    players: { red: '', yellow: '' },
+    stats: { red: 0, yellow: 0, draws: 0 },
+    gameStarted: false,
+    
+    // === ACTION: Spielernamen setzen ===
+    setPlayers: (redName: string, yellowName: string) => {
+      // set() aktualisiert den State
+      // Wir übergeben ein Objekt mit den zu ändernden Werten
+      set({
+        players: { red: redName, yellow: yellowName },
+      })
+    },
+    
+    // === ACTION: Spiel starten ===
+    startGame: () => {
+      // Stelle die originale dropPiece Funktion wieder her
+      // (falls sie von OnlineGame überschrieben wurde)
+      const currentLocalDropPiece = createLocalDropPiece(set, get)
+      set({
+        gameStarted: true,
+        status: 'playing',
+        board: createEmptyBoard(),
+        currentPlayer: 'red',
+        winner: null,
+        winningCells: [],
+        dropPiece: currentLocalDropPiece,
+      })
+    },
+    
+    // === ACTION: Spielstein einwerfen ===
+    // Dies ist die Hauptlogik des Spiels
+    // Die Funktion wird von createLocalDropPiece erstellt
+    dropPiece: localDropPiece,
   
   // === ACTION: Gewinn prüfen ===
   // Diese Funktion prüft ob der letzte Zug zum Sieg geführt hat
@@ -247,12 +266,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
   
   // === ACTION: Neue Runde (behält Statistik) ===
   resetGame: () => {
+    // Stelle die originale dropPiece Funktion wieder her
+    // (falls sie von OnlineGame überschrieben wurde)
+    const currentLocalDropPiece = createLocalDropPiece(set, get)
     set({
       board: createEmptyBoard(),
       currentPlayer: 'red',
       winner: null,
       winningCells: [],
       status: 'playing',
+      dropPiece: currentLocalDropPiece,
     })
   },
   
@@ -269,4 +292,5 @@ export const useGameStore = create<GameStore>((set, get) => ({
       gameStarted: false,
     })
   },
-}))
+  }
+})

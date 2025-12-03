@@ -1,0 +1,2 @@
+export { OpponentHistory } from './OpponentHistory'
+

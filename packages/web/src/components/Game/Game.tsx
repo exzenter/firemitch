@@ -11,7 +11,7 @@ import { Card, Space, Typography, Button, Tag, Statistic, Row, Col, Divider } fr
 import { ReloadOutlined, TrophyOutlined, HomeOutlined } from '@ant-design/icons'
 
 // UNSERE KOMPONENTEN UND STORE
-import { useGameStore } from '../stores/gameStore'
+import { useGameStore } from '../../stores/gameStore'
 import { Board } from './Board'
 import { PlayerSetup } from './PlayerSetup'
 
@@ -111,8 +111,8 @@ export const Game = () => {
         border: '1px solid rgba(245, 34, 45, 0.3)',
         borderRadius: '16px',
       }}
-      // bodyStyle ändert den Style des Card-Inhalts
-      bodyStyle={{ padding: '24px' }}
+      // styles.body ändert den Style des Card-Inhalts
+      styles={{ body: { padding: '24px' } }}
     >
       {/* Space mit vertikaler Richtung = stapelt Kinder vertikal */}
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>

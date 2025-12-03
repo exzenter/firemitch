@@ -16,10 +16,8 @@ import { Layout, Typography, Button, Space, Spin } from 'antd'
 import { GithubOutlined, UserOutlined, LogoutOutlined } from '@ant-design/icons'
 
 // UNSERE KOMPONENTEN
-import { Game } from './components/Game'
-import { ModeSelect } from './components/ModeSelect'
-import { Matchmaking } from './components/Matchmaking'
-import { OnlineGame } from './components/OnlineGame'
+import { Game, OnlineGame } from './components/Game'
+import { ModeSelect, Matchmaking } from './components/Matchmaking'
 import { AuthModal } from './components/Auth'
 
 // UNSERE HOOKS UND UTILS

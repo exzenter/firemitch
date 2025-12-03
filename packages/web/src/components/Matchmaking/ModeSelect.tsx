@@ -16,8 +16,8 @@ import {
 } from '@ant-design/icons'
 
 // HOOKS
-import { useAuth } from '../hooks/useAuth'
-import { useOpponentHistory } from '../hooks/useOpponentHistory'
+import { useAuth } from '../../hooks/useAuth'
+import { useOpponentHistory } from '../../hooks/useOpponentHistory'
 
 const { Title, Text } = Typography
 

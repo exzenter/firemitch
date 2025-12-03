@@ -1,8 +1,8 @@
 import { useEffect } from 'react'
 import { Card, Button, Typography, Spin, Space, Alert } from 'antd'
 import { SearchOutlined, CloseOutlined } from '@ant-design/icons'
-import { useMatchmaking } from '../hooks/useMatchmaking'
-import { useAuth } from '../hooks/useAuth'
+import { useMatchmaking } from '../../hooks/useMatchmaking'
+import { useAuth } from '../../hooks/useAuth'
 
 const { Title, Text } = Typography
 

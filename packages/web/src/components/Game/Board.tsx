@@ -4,9 +4,9 @@
 // Das Spielbrett zeigt alle Zellen an und verarbeitet Klicks.
 // Es verwendet den globalen Zustand Store um auf Spieldaten zuzugreifen.
 
-import { useGameStore } from '../stores/gameStore'
+import { useGameStore } from '../../stores/gameStore'
 import { Cell } from './Cell'
-import { ROWS, COLS } from '../types/game'
+import { ROWS, COLS } from '../../types/game'
 
 // -----------------------------------------------------------------------------
 // DIE KOMPONENTE

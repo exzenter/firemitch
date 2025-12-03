@@ -1,7 +1,7 @@
 import { Card, Table, Typography, Empty, Spin } from 'antd'
 import { TrophyOutlined, CloseCircleOutlined, MinusCircleOutlined } from '@ant-design/icons'
-import { useOpponentHistory } from '../hooks/useOpponentHistory'
-import { useAuth } from '../hooks/useAuth'
+import { useOpponentHistory } from '../../hooks/useOpponentHistory'
+import { useAuth } from '../../hooks/useAuth'
 
 const { Title, Text } = Typography
 

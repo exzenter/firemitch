@@ -11,7 +11,7 @@ import { Card, Input, Button, Space, Typography, Divider } from 'antd'
 import { UserOutlined, PlayCircleOutlined } from '@ant-design/icons'
 
 // ZUSTAND STORE
-import { useGameStore } from '../stores/gameStore'
+import { useGameStore } from '../../stores/gameStore'
 
 // Destructuring
 const { Text } = Typography

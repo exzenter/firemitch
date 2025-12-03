@@ -8,7 +8,7 @@
 import { CSSProperties, useState } from 'react'
 
 // Importiere unseren Cell-Typ
-import { Cell as CellType } from '../types/game'
+import { Cell as CellType } from '../../types/game'
 
 // -----------------------------------------------------------------------------
 // PROPS INTERFACE

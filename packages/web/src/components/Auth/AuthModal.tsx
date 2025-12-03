@@ -17,7 +17,7 @@ export const AuthModal = ({ open, onClose }: AuthModalProps) => {
       open={open}
       onCancel={onClose}
       footer={null}
-      destroyOnClose
+      destroyOnHidden
     >
       <Tabs
         activeKey={activeTab}
