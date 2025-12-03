@@ -1,13 +1,27 @@
-import { Card, Space, Typography, Button, Tag } from 'antd'
-import { ReloadOutlined, TrophyOutlined } from '@ant-design/icons'
+import { Card, Space, Typography, Button, Tag, Statistic, Row, Col, Divider } from 'antd'
+import { ReloadOutlined, TrophyOutlined, HomeOutlined } from '@ant-design/icons'
 import { useGameStore } from '../stores/gameStore'
 import { Board } from './Board'
-import { COLS } from '../types/game'
+import { PlayerSetup } from './PlayerSetup'
 
 const { Title, Text } = Typography
 
 export const Game = () => {
-  const { currentPlayer, winner, status, resetGame } = useGameStore()
+  const { 
+    currentPlayer, 
+    winner, 
+    status, 
+    resetGame, 
+    resetSession,
+    gameStarted,
+    players,
+    stats
+  } = useGameStore()
+
+  // Zeige Setup-Screen wenn Spiel nicht gestartet
+  if (!gameStarted) {
+    return <PlayerSetup />
+  }
 
   const getStatusMessage = () => {
     switch (status) {
@@ -20,7 +34,7 @@ export const Game = () => {
                 color={winner === 'red' ? '#f5222d' : '#fadb14'}
                 style={{ fontSize: '16px', padding: '4px 12px' }}
               >
-                {winner === 'red' ? 'ROT' : 'GELB'}
+                {winner === 'red' ? players.red : players.yellow}
               </Tag>
               hat gewonnen!
             </Text>
@@ -36,7 +50,7 @@ export const Game = () => {
               color={currentPlayer === 'red' ? '#f5222d' : '#fadb14'}
               style={{ fontSize: '16px', padding: '4px 12px' }}
             >
-              {currentPlayer === 'red' ? 'ROT' : 'GELB'}
+              {currentPlayer === 'red' ? players.red : players.yellow}
             </Tag>
           </Space>
         )
@@ -45,74 +59,80 @@ export const Game = () => {
     }
   }
 
+  const totalGames = stats.red + stats.yellow + stats.draws
+
   return (
     <Card
       style={{
         background: 'rgba(26, 26, 46, 0.9)',
         border: '1px solid rgba(245, 34, 45, 0.3)',
         borderRadius: '16px',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
       }}
-      bodyStyle={{ padding: '32px' }}
+      bodyStyle={{ padding: '24px' }}
     >
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        {/* Session Statistik */}
+        <Card size="small" title="Session Statistik">
+          <Row gutter={16}>
+            <Col span={8}>
+              <Statistic 
+                title={<span style={{ color: '#f5222d' }}>🔴 {players.red}</span>}
+                value={stats.red} 
+                suffix="Siege"
+              />
+            </Col>
+            <Col span={8}>
+              <Statistic 
+                title={<span style={{ color: '#faad14' }}>🟡 {players.yellow}</span>}
+                value={stats.yellow} 
+                suffix="Siege"
+              />
+            </Col>
+            <Col span={8}>
+              <Statistic 
+                title="🤝 Unentschieden"
+                value={stats.draws} 
+              />
+            </Col>
+          </Row>
+          {totalGames > 0 && (
+            <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+              Gesamt: {totalGames} Spiele
+            </Text>
+          )}
+        </Card>
+
+        <Divider style={{ margin: '8px 0' }} />
+
+        {/* Aktueller Status */}
         <div style={{ textAlign: 'center' }}>
-          <Title
-            level={4}
-            style={{
-              color: '#e4e4e7',
-              margin: 0,
-              marginBottom: '16px',
-              fontWeight: 500,
-            }}
-          >
+          <Title level={4} style={{ margin: 0 }}>
             {getStatusMessage()}
           </Title>
         </div>
 
+        {/* Spielbrett */}
         <Board />
 
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            gap: '16px',
-            flexWrap: 'wrap',
-          }}
-        >
+        {/* Buttons */}
+        <Space style={{ width: '100%', justifyContent: 'center' }}>
           <Button
             type="primary"
             icon={<ReloadOutlined />}
             onClick={resetGame}
             size="large"
-            style={{
-              height: '48px',
-              fontSize: '16px',
-              fontWeight: 600,
-            }}
           >
-            Neues Spiel
+            Nächste Runde
           </Button>
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            gap: '24px',
-            paddingTop: '8px',
-            borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-          }}
-        >
-          <Text style={{ color: '#71717a', fontSize: '12px' }}>
-            {COLS} Spalten × 6 Reihen
-          </Text>
-          <Text style={{ color: '#71717a', fontSize: '12px' }}>
-            4 in einer Reihe zum Gewinnen
-          </Text>
-        </div>
+          <Button
+            icon={<HomeOutlined />}
+            onClick={resetSession}
+            size="large"
+          >
+            Neue Session
+          </Button>
+        </Space>
       </Space>
     </Card>
   )
 }
-

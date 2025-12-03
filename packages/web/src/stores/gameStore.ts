@@ -9,18 +9,34 @@ import {
   WIN_LENGTH 
 } from '../types/game'
 
+interface PlayerInfo {
+  red: string
+  yellow: string
+}
+
+interface SessionStats {
+  red: number
+  yellow: number
+  draws: number
+}
+
 interface GameStore {
   board: Board
   currentPlayer: Player
   winner: Player | null
   winningCells: [number, number][]
   status: GameStatus
+  players: PlayerInfo
+  stats: SessionStats
+  gameStarted: boolean
   
   // Actions
+  setPlayers: (redName: string, yellowName: string) => void
+  startGame: () => void
   dropPiece: (col: number) => boolean
   resetGame: () => void
+  resetSession: () => void
   checkWin: (row: number, col: number, player: Player) => [number, number][] | null
-  checkDraw: () => boolean
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -28,7 +44,27 @@ export const useGameStore = create<GameStore>((set, get) => ({
   currentPlayer: 'red',
   winner: null,
   winningCells: [],
-  status: 'playing',
+  status: 'waiting',
+  players: { red: '', yellow: '' },
+  stats: { red: 0, yellow: 0, draws: 0 },
+  gameStarted: false,
+  
+  setPlayers: (redName: string, yellowName: string) => {
+    set({
+      players: { red: redName, yellow: yellowName },
+    })
+  },
+  
+  startGame: () => {
+    set({
+      gameStarted: true,
+      status: 'playing',
+      board: createEmptyBoard(),
+      currentPlayer: 'red',
+      winner: null,
+      winningCells: [],
+    })
+  },
   
   dropPiece: (col: number) => {
     const { board, currentPlayer, status } = get()
@@ -57,11 +93,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const winningCells = get().checkWin(targetRow, col, currentPlayer)
     
     if (winningCells) {
+      const { stats } = get()
       set({
         board: newBoard,
         winner: currentPlayer,
         winningCells,
         status: 'won',
+        stats: {
+          ...stats,
+          [currentPlayer]: stats[currentPlayer] + 1,
+        },
       })
       return true
     }
@@ -70,9 +111,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const isDraw = newBoard[0].every(cell => cell !== null)
     
     if (isDraw) {
+      const { stats } = get()
       set({
         board: newBoard,
         status: 'draw',
+        stats: {
+          ...stats,
+          draws: stats.draws + 1,
+        },
       })
       return true
     }
@@ -139,11 +185,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return null
   },
   
-  checkDraw: () => {
-    const { board } = get()
-    return board[0].every(cell => cell !== null)
-  },
-  
   resetGame: () => {
     set({
       board: createEmptyBoard(),
@@ -153,5 +194,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
       status: 'playing',
     })
   },
+  
+  resetSession: () => {
+    set({
+      board: createEmptyBoard(),
+      currentPlayer: 'red',
+      winner: null,
+      winningCells: [],
+      status: 'waiting',
+      players: { red: '', yellow: '' },
+      stats: { red: 0, yellow: 0, draws: 0 },
+      gameStarted: false,
+    })
+  },
 }))
-
