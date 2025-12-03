@@ -107,7 +107,7 @@ export const OnlineGame = ({ gameId: initialGameId, onLeave }: OnlineGameProps) 
     }
   }, [gameState?.status, currentGameId, myColor])
 
-  // Listen for rematch game creation
+  // Listen for rematch game creation (either player can start)
   useEffect(() => {
     if (!user?.uid || !opponentId || !gameState || gameState.status === 'playing') return
 
@@ -116,8 +116,8 @@ export const OnlineGame = ({ gameId: initialGameId, onLeave }: OnlineGameProps) 
     const unsubscribe = onSnapshot(rematchRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data()
-        if (data.ready?.includes(user.uid) && data.ready?.includes(opponentId) && data.gameId && data.gameId !== currentGameId) {
-          // Both players ready, switch to new game
+        // If there's a new game and it's different from current, switch to it
+        if (data.gameId && data.gameId !== currentGameId) {
           setCurrentGameId(data.gameId)
           setRematchPending(false)
         }
@@ -160,68 +160,49 @@ export const OnlineGame = ({ gameId: initialGameId, onLeave }: OnlineGameProps) 
   }, [isMyTurn, gameState?.status])
 
   const handleRematch = async () => {
-    if (!user?.uid || !opponentId || !myColor) return
+    if (!user?.uid || !opponentId || !myColor || !gameState) return
     
     setRematchPending(true)
     
-    const sortedIds = [user.uid, opponentId].sort()
-    const rematchRef = doc(db, 'rematch', sortedIds.join('_'))
-    
-    // Check if rematch doc exists
-    const rematchSnap = await getDoc(rematchRef)
-    
-    if (rematchSnap.exists()) {
-      const data = rematchSnap.data()
-      const ready = data.ready || []
+    try {
+      // Switch colors for new game
+      const newRedPlayer = gameState.players.yellow
+      const newYellowPlayer = gameState.players.red
+      const newRedName = gameState.playerNames.yellow
+      const newYellowName = gameState.playerNames.red
       
-      if (!ready.includes(user.uid)) {
-        ready.push(user.uid)
-      }
+      // Create new game immediately
+      const gamesRef = collection(db, 'games')
+      const newGameRef = doc(gamesRef)
       
-      // If both ready, create new game
-      if (ready.includes(user.uid) && ready.includes(opponentId)) {
-        // Switch colors
-        const newRedPlayer = gameState?.players.yellow
-        const newYellowPlayer = gameState?.players.red
-        const newRedName = gameState?.playerNames.yellow
-        const newYellowName = gameState?.playerNames.red
-        
-        const gamesRef = collection(db, 'games')
-        const newGameRef = doc(gamesRef)
-        
-        await setDoc(newGameRef, {
-          players: { red: newRedPlayer, yellow: newYellowPlayer },
-          playerNames: { red: newRedName, yellow: newYellowName },
-          board: createEmptyBoardFlat(),
-          currentPlayer: 'red',
-          status: 'playing',
-          winner: null,
-          winningCells: [],
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        })
-        
-        await setDoc(rematchRef, {
-          ready: [],
-          gameId: newGameRef.id,
-          updatedAt: serverTimestamp(),
-        })
-      } else {
-        await setDoc(rematchRef, {
-          ...data,
-          ready,
-          updatedAt: serverTimestamp(),
-        }, { merge: true })
-      }
-    } else {
-      // Create rematch doc
-      await setDoc(rematchRef, {
-        players: [user.uid, opponentId],
-        ready: [user.uid],
-        gameId: null,
+      await setDoc(newGameRef, {
+        players: { red: newRedPlayer, yellow: newYellowPlayer },
+        playerNames: { red: newRedName, yellow: newYellowName },
+        board: createEmptyBoardFlat(),
+        currentPlayer: 'red',
+        status: 'playing',
+        winner: null,
+        winningCells: [],
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       })
+      
+      // Update rematch doc so opponent gets notified
+      const sortedIds = [user.uid, opponentId].sort()
+      const rematchRef = doc(db, 'rematch', sortedIds.join('_'))
+      
+      await setDoc(rematchRef, {
+        players: [user.uid, opponentId],
+        gameId: newGameRef.id,
+        createdAt: serverTimestamp(),
+      })
+      
+      // Switch to new game (will also happen via listener, but do it immediately for responsiveness)
+      setCurrentGameId(newGameRef.id)
+      setRematchPending(false)
+    } catch (err) {
+      console.error('Rematch failed:', err)
+      setRematchPending(false)
     }
   }
 
@@ -432,7 +413,7 @@ export const OnlineGame = ({ gameId: initialGameId, onLeave }: OnlineGameProps) 
               loading={rematchPending}
               size="large"
             >
-              {rematchPending ? 'Warte auf Gegner...' : 'Nochmal spielen'}
+              Nochmal spielen
             </Button>
           )}
           <Button
@@ -445,14 +426,6 @@ export const OnlineGame = ({ gameId: initialGameId, onLeave }: OnlineGameProps) 
           </Button>
         </Space>
 
-        {rematchPending && (
-          <Alert
-            message="Warte auf Gegner..."
-            description="Dein Gegner muss auch auf 'Nochmal spielen' klicken."
-            type="info"
-            showIcon
-          />
-        )}
       </Space>
     </Card>
   )
