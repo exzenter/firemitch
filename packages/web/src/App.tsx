@@ -13,17 +13,20 @@ import { useState, useEffect } from 'react'
 import { Layout, Typography, Button, Space, Spin } from 'antd'
 
 // ANT DESIGN ICONS
-import { GithubOutlined, UserOutlined, LogoutOutlined } from '@ant-design/icons'
+import { GithubOutlined, UserOutlined, LogoutOutlined, SunOutlined, MoonOutlined } from '@ant-design/icons'
 
 // UNSERE KOMPONENTEN
-import { Game, OnlineGame } from './components/Game'
+import { Game, OnlineGame, AIGame } from './components/Game'
 import { ModeSelect, Matchmaking } from './components/Matchmaking'
 import { AuthModal } from './components/Auth'
+import { OnlineUsersBanner } from './components/OnlineUsersBanner'
 
 // UNSERE HOOKS UND UTILS
 import { useAuth } from './hooks/useAuth'
 import { onAuthChange, getUserProfile } from './lib/auth'
 import { useAuthStore } from './stores/authStore'
+import { useThemeStore } from './stores/themeStore'
+import { setUserOnline, setUserOffline } from './hooks/useOnlineUsers'
 
 // -----------------------------------------------------------------------------
 // DESTRUCTURING VON ANT DESIGN KOMPONENTEN
@@ -37,8 +40,8 @@ const { Title, Text } = Typography
 // TYPE ALIAS FÜR VIEWS
 // -----------------------------------------------------------------------------
 // Union Type für alle möglichen Ansichten der App
-// So kann 'view' nur einen dieser 4 Werte haben
-type AppView = 'mode-select' | 'local-game' | 'matchmaking' | 'online-game'
+// So kann 'view' nur einen dieser 5 Werte haben
+type AppView = 'mode-select' | 'local-game' | 'matchmaking' | 'online-game' | 'ai-game'
 
 // -----------------------------------------------------------------------------
 // APP KOMPONENTE
@@ -62,6 +65,9 @@ function App() {
   
   // Auth Store Setter (für globalen Auth-State)
   const { setUser, setProfile, setLoading } = useAuthStore()
+  
+  // Theme Store
+  const { theme, toggleTheme } = useThemeStore()
 
   // ---------------------------------------------------------------------------
   // useEffect: AUTH STATE SYNCHRONISIEREN
@@ -69,25 +75,45 @@ function App() {
   // Dieser Effect synchronisiert Firebase Auth mit unserem Store
   
   useEffect(() => {
+    let currentUserId: string | null = null
+    
     // onAuthChange ist ein Firebase Observer
     // Er ruft den Callback bei Auth-Änderungen auf
     const unsubscribe = onAuthChange(async (firebaseUser) => {
+      // Wenn User ausgeloggt wird, entferne Online-Status
+      if (currentUserId && !firebaseUser) {
+        await setUserOffline(currentUserId)
+      }
+      
       setUser(firebaseUser)
       
       if (firebaseUser) {
         // User ist eingeloggt - Profil laden
         const userProfile = await getUserProfile(firebaseUser.uid)
         setProfile(userProfile)
+        
+        // Online-Status setzen
+        if (userProfile) {
+          await setUserOnline(firebaseUser, userProfile)
+          currentUserId = firebaseUser.uid
+        }
       } else {
         // User ist ausgeloggt
         setProfile(null)
+        currentUserId = null
       }
       
       setLoading(false)
     })
     
     // Cleanup: Observer entfernen wenn Komponente unmountet
-    return () => unsubscribe()
+    return () => {
+      unsubscribe()
+      // Online-Status entfernen beim Unmount wenn User noch eingeloggt
+      if (currentUserId) {
+        setUserOffline(currentUserId)
+      }
+    }
   }, [setUser, setProfile, setLoading])  // Dependencies Array
 
   // ---------------------------------------------------------------------------
@@ -106,6 +132,11 @@ function App() {
     } else {
       setShowAuthModal(true)  // Login Modal zeigen
     }
+  }
+
+  // KI Spiel starten
+  const handleSelectAI = () => {
+    setView('ai-game')
   }
 
   // Callback wenn Online-Spiel gefunden wurde
@@ -185,6 +216,15 @@ function App() {
         {/* USER INFO / AUTH BUTTONS */}
         {/* Space ist ein Flex-Container mit Abständen */}
         <Space>
+          {/* THEME TOGGLE */}
+          <Button
+            type="text"
+            icon={theme === 'dark' ? <SunOutlined /> : <MoonOutlined />}
+            onClick={toggleTheme}
+            style={{ color: '#e4e4e7' }}
+            title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+          />
+          
           {/* CONDITIONAL RENDERING mit Ternary Operator */}
           {/* Wenn user UND profile, zeige User-Info, sonst Login-Button */}
           {user && profile ? (
@@ -213,6 +253,9 @@ function App() {
         </Space>
       </Header>
       
+      {/* ===== ONLINE USERS BANNER ===== */}
+      <OnlineUsersBanner />
+      
       {/* ===== CONTENT ===== */}
       <Content
         style={{
@@ -230,6 +273,7 @@ function App() {
           <ModeSelect
             onSelectLocal={handleSelectLocal}
             onSelectOnline={handleSelectOnline}
+            onSelectAI={handleSelectAI}
             onShowAuth={() => setShowAuthModal(true)}
           />
         )}
@@ -260,6 +304,11 @@ function App() {
             gameId={onlineGameId}
             onLeave={handleBackToMenu}
           />
+        )}
+        
+        {/* KI-Spiel */}
+        {view === 'ai-game' && (
+          <AIGame onBack={handleBackToMenu} />
         )}
       </Content>
       

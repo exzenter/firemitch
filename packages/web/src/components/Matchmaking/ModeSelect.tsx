@@ -9,6 +9,7 @@ import { Card, Button, Space, Typography, Row, Col, Badge, Collapse, Table } fro
 import { 
   DesktopOutlined,    // Icon für lokales Spiel
   GlobalOutlined,     // Icon für Online-Spiel
+  RobotOutlined,      // Icon für KI-Spiel
   UserOutlined,
   LogoutOutlined,
   TrophyOutlined,
@@ -29,13 +30,14 @@ const { Title, Text } = Typography
 interface ModeSelectProps {
   onSelectLocal: () => void   // Wird aufgerufen wenn "Lokal" gewählt wird
   onSelectOnline: () => void  // Wird aufgerufen wenn "Online" gewählt wird
+  onSelectAI: () => void      // Wird aufgerufen wenn "KI" gewählt wird
   onShowAuth: () => void      // Wird aufgerufen wenn Auth-Modal gezeigt werden soll
 }
 
 // -----------------------------------------------------------------------------
 // DIE KOMPONENTE
 // -----------------------------------------------------------------------------
-export const ModeSelect = ({ onSelectLocal, onSelectOnline, onShowAuth }: ModeSelectProps) => {
+export const ModeSelect = ({ onSelectLocal, onSelectOnline, onSelectAI, onShowAuth }: ModeSelectProps) => {
   // Auth-Daten aus Hook
   const { user, profile, logout, loading } = useAuth()
   
@@ -128,6 +130,25 @@ export const ModeSelect = ({ onSelectLocal, onSelectOnline, onShowAuth }: ModeSe
                     Finde einen Gegner online
                   </Text>
                 )}
+              </Space>
+            </Card>
+          </Col>
+
+          {/* --- KI MODUS --- */}
+          {/* Volle Breite (xs=24) - so breit wie Lokal und Online zusammen */}
+          <Col xs={24}>
+            <Card
+              hoverable
+              onClick={onSelectAI}
+              style={{ textAlign: 'center' }}
+            >
+              <Space direction="vertical">
+                <RobotOutlined style={{ fontSize: 48, color: '#722ed1' }} />
+                <Title level={4} style={{ margin: 0 }}>Gegen KI</Title>
+                <Text type="secondary">1 Spieler vs Computer</Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Fordere die clevere Minimax-KI heraus!
+                </Text>
               </Space>
             </Card>
           </Col>

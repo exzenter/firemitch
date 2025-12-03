@@ -16,13 +16,11 @@ import ReactDOM from 'react-dom/client'  // React DOM-Renderer für Browser
 // Verwaltet das Laden, Cachen und Synchronisieren von Server-Daten
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
-// Ant Design - UI Component Library
-// ConfigProvider ermöglicht globale Konfiguration (Theme, Sprache)
-import { ConfigProvider, theme } from 'antd'
-import deDE from 'antd/locale/de_DE'  // Deutsche Übersetzungen
-
 // Unsere Haupt-App-Komponente
 import App from './App'
+
+// Theme Provider
+import { ThemeProvider } from './components/ThemeProvider'
 
 // Globale CSS-Styles
 import './index.css'
@@ -62,34 +60,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     {/* QueryClientProvider macht den QueryClient für alle Kind-Komponenten verfügbar */}
     {/* Das ist das "Provider Pattern" - ein React Context unter der Haube */}
     <QueryClientProvider client={queryClient}>
-      
-      {/* ConfigProvider konfiguriert Ant Design global */}
-      <ConfigProvider
-        locale={deDE}  // Deutsche Sprache für Ant Design Komponenten
-        theme={{
-          // Dark Mode aktivieren
-          algorithm: theme.darkAlgorithm,
-          
-          // Token sind die Design-Variablen von Ant Design
-          token: {
-            colorPrimary: '#f5222d',           // Primärfarbe (Rot)
-            colorBgContainer: '#1a1a2e',       // Hintergrund für Container
-            colorBgLayout: '#0f0f1a',          // Hintergrund für Layout
-            borderRadius: 8,                    // Abgerundete Ecken
-            fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-          },
-          
-          // Komponenten-spezifische Anpassungen
-          components: {
-            Button: {
-              primaryShadow: '0 4px 14px rgba(245, 34, 45, 0.4)',
-            },
-          },
-        }}
-      >
+      <ThemeProvider>
         {/* Die eigentliche App-Komponente */}
         <App />
-      </ConfigProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   </React.StrictMode>
 )

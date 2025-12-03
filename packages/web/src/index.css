@@ -18,6 +18,13 @@ body {
   color: #e4e4e7;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* Light Mode Styles */
+body.light-mode {
+  background: linear-gradient(135deg, #f5f5f5 0%, #ffffff 50%, #f0f0f0 100%);
+  color: #1a1a2e;
 }
 
 /* Custom scrollbar */
@@ -28,6 +35,10 @@ body {
 
 ::-webkit-scrollbar-track {
   background: #1a1a2e;
+}
+
+body.light-mode ::-webkit-scrollbar-track {
+  background: #f5f5f5;
 }
 
 ::-webkit-scrollbar-thumb {

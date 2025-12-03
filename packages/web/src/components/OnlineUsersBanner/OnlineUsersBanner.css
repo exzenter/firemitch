@@ -1,0 +1,85 @@
+/* =============================================================================
+   ONLINE USERS BANNER STYLES
+   ============================================================================= */
+
+.online-users-banner {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  background: linear-gradient(135deg, rgba(245, 34, 45, 0.1) 0%, rgba(250, 173, 20, 0.1) 100%);
+  border: 2px solid rgba(245, 34, 45, 0.3);
+  border-radius: 8px;
+  padding: 12px 0;
+  position: relative;
+  overflow: hidden;
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+.online-counter {
+  text-align: center;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #e4e4e7;
+  text-shadow: 0 0 10px rgba(245, 34, 45, 0.5);
+}
+
+.banner-scroll-container {
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  height: 32px;
+  mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
+}
+
+.banner-scroll-content {
+  display: inline-flex;
+  gap: 40px;
+  align-items: center;
+  animation: marquee 20s linear infinite;
+  white-space: nowrap;
+  will-change: transform;
+  padding-left: 100%;
+}
+
+.banner-username {
+  display: inline-block;
+  padding: 4px 16px;
+  background: rgba(245, 34, 45, 0.2);
+  border: 1px solid rgba(245, 34, 45, 0.4);
+  border-radius: 16px;
+  color: #e4e4e7;
+  font-weight: 500;
+  font-size: 14px;
+  text-shadow: 0 0 5px rgba(245, 34, 45, 0.3);
+  flex-shrink: 0;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+/* Light Mode Styles */
+body.light-mode .online-users-banner {
+  background: linear-gradient(135deg, rgba(245, 34, 45, 0.15) 0%, rgba(250, 173, 20, 0.15) 100%);
+  border-color: rgba(245, 34, 45, 0.4);
+}
+
+body.light-mode .online-counter {
+  color: #1a1a2e;
+  text-shadow: 0 0 8px rgba(245, 34, 45, 0.4);
+}
+
+body.light-mode .banner-username {
+  background: rgba(245, 34, 45, 0.25);
+  border-color: rgba(245, 34, 45, 0.5);
+  color: #1a1a2e;
+  text-shadow: 0 0 4px rgba(245, 34, 45, 0.3);
+}
+

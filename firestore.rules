@@ -67,5 +67,13 @@ service cloud.firestore {
         allow delete: if false;
       }
     }
+    
+    // Presence collection (online users)
+    match /presence/{uid} {
+      allow read: if true; // Everyone can see who's online
+      allow create: if request.auth != null && request.auth.uid == uid;
+      allow update: if request.auth != null && request.auth.uid == uid;
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
   }
 }
