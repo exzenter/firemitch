@@ -14,6 +14,9 @@ import {
   setDoc, 
   onSnapshot,
   serverTimestamp,
+  updateDoc,
+  increment,
+  getDoc,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useOnlineGame } from '../hooks/useOnlineGame'
@@ -104,6 +107,63 @@ export const OnlineGame = ({ gameId: initialGameId, onLeave }: OnlineGameProps) 
       setSessionStats(prev => ({ ...prev, draws: prev.draws + 1 }))
     }
   }, [gameState?.status, currentGameId, myColor])
+
+  // Update own lifetime stats in Firestore when game ends
+  // Each client updates only their own stats (due to Firestore security rules)
+  useEffect(() => {
+    if (!user?.uid || !opponentId || !opponentName || !gameState || !myColor) return
+    if (gameState.status === 'playing') return
+    
+    // Only count once per game (separate key from session stats)
+    const firestoreKey = `firestore_stats_${currentGameId}`
+    if (sessionStorage.getItem(firestoreKey)) return
+    sessionStorage.setItem(firestoreKey, 'true')
+
+    const updateOwnStats = async () => {
+      // Determine result from my perspective
+      let result: 'win' | 'loss' | 'draw'
+      if (gameState.status === 'won') {
+        result = gameState.winner === myColor ? 'win' : 'loss'
+      } else if (gameState.status === 'draw') {
+        result = 'draw'
+      } else {
+        return // abandoned games don't count
+      }
+
+      try {
+        // 1. Update global user stats
+        const userRef = doc(db, 'users', user.uid)
+        const statField = result === 'win' ? 'stats.wins' : result === 'loss' ? 'stats.losses' : 'stats.draws'
+        await updateDoc(userRef, {
+          [statField]: increment(1),
+        })
+
+        // 2. Update opponent history
+        const historyRef = doc(db, 'userHistory', user.uid, 'opponents', opponentId)
+        const historySnap = await getDoc(historyRef)
+        const historyStatField = result === 'win' ? 'wins' : result === 'loss' ? 'losses' : 'draws'
+
+        if (historySnap.exists()) {
+          await updateDoc(historyRef, {
+            [historyStatField]: increment(1),
+            lastPlayed: serverTimestamp(),
+          })
+        } else {
+          await setDoc(historyRef, {
+            opponentName,
+            wins: result === 'win' ? 1 : 0,
+            losses: result === 'loss' ? 1 : 0,
+            draws: result === 'draw' ? 1 : 0,
+            lastPlayed: serverTimestamp(),
+          })
+        }
+      } catch (err) {
+        console.error('Failed to update stats:', err)
+      }
+    }
+
+    updateOwnStats()
+  }, [user?.uid, opponentId, opponentName, gameState?.status, currentGameId, myColor, gameState?.winner])
 
   // Listen for rematch game creation (either player can start)
   useEffect(() => {

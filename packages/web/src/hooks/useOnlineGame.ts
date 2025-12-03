@@ -4,9 +4,6 @@ import {
   onSnapshot,
   updateDoc,
   serverTimestamp,
-  increment,
-  setDoc,
-  getDoc,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { Board, Player, Cell, ROWS, COLS, WIN_LENGTH, deserializeBoard, serializeBoard, serializeWinningCells, deserializeWinningCells } from '../types/game'
@@ -135,40 +132,8 @@ export const useOnlineGame = (
     return () => unsubscribe()
   }, [gameId])
 
-  const updateStats = async (
-    odg: string,
-    opponentId: string,
-    opponentName: string,
-    result: 'win' | 'loss' | 'draw'
-  ) => {
-    // Update user stats
-    const userRef = doc(db, 'users', odg)
-    const statField = result === 'win' ? 'stats.wins' : result === 'loss' ? 'stats.losses' : 'stats.draws'
-    await updateDoc(userRef, {
-      [statField]: increment(1),
-    })
-
-    // Update opponent history
-    const historyRef = doc(db, 'userHistory', odg, 'opponents', opponentId)
-    const historySnap = await getDoc(historyRef)
-    
-    const historyStatField = result === 'win' ? 'wins' : result === 'loss' ? 'losses' : 'draws'
-    
-    if (historySnap.exists()) {
-      await updateDoc(historyRef, {
-        [historyStatField]: increment(1),
-        lastPlayed: serverTimestamp(),
-      })
-    } else {
-      await setDoc(historyRef, {
-        opponentName,
-        wins: result === 'win' ? 1 : 0,
-        losses: result === 'loss' ? 1 : 0,
-        draws: result === 'draw' ? 1 : 0,
-        lastPlayed: serverTimestamp(),
-      })
-    }
-  }
+  // Stats werden jetzt in OnlineGame.tsx von jedem Client selbst aktualisiert
+  // (wegen Firestore Security Rules - jeder darf nur seine eigenen Stats ändern)
 
   const makeMove = useCallback(async (col: number): Promise<boolean> => {
     if (!gameId || !gameState || !currentUid || !myColor) return false
@@ -206,13 +171,8 @@ export const useOnlineGame = (
         updatedAt: serverTimestamp(),
       })
 
-      // Update stats for both players
-      const opponentColor = myColor === 'red' ? 'yellow' : 'red'
-      const opponentId = gameState.players[opponentColor]
-      const opponentName = gameState.playerNames[opponentColor]
-      
-      await updateStats(currentUid, opponentId, opponentName, 'win')
-      await updateStats(opponentId, currentUid, gameState.playerNames[myColor], 'loss')
+      // Stats werden jetzt in OnlineGame.tsx von jedem Client selbst aktualisiert
+      // (wegen Firestore Security Rules - jeder darf nur seine eigenen Stats ändern)
       
       return true
     }
@@ -226,12 +186,7 @@ export const useOnlineGame = (
         updatedAt: serverTimestamp(),
       })
 
-      const opponentColor = myColor === 'red' ? 'yellow' : 'red'
-      const opponentId = gameState.players[opponentColor]
-      const opponentName = gameState.playerNames[opponentColor]
-      
-      await updateStats(currentUid, opponentId, opponentName, 'draw')
-      await updateStats(opponentId, currentUid, gameState.playerNames[myColor], 'draw')
+      // Stats werden jetzt in OnlineGame.tsx von jedem Client selbst aktualisiert
       
       return true
     }
