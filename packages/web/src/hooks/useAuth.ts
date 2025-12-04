@@ -22,6 +22,8 @@ import {
   signInWithGoogle,
   signOut,
 } from '../lib/auth'
+import { setUserOffline } from './useOnlineUsers'
+import { auth } from '../lib/firebase'
 
 // -----------------------------------------------------------------------------
 // INTERFACE FÜR HOOK-RÜCKGABE
@@ -151,11 +153,23 @@ export const useAuth = (): UseAuthReturn => {
     setLoading(true)
     setError(null)
     try {
+      // WICHTIG: Zuerst den User offline setzen, BEVOR signOut aufgerufen wird!
+      // Nach signOut ist request.auth = null und das Löschen würde fehlschlagen
+      // wegen Firestore Security Rules
+      // 
+      // Wir verwenden auth.currentUser anstatt den React State 'user',
+      // weil der React State bei Google Auth manchmal nicht synchron ist
+      const currentUser = auth.currentUser
+      if (currentUser) {
+        console.log('Logout: Setze User offline:', currentUser.uid)
+        await setUserOffline(currentUser.uid)
+      }
       await signOut()
       setProfile(null)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Logout fehlgeschlagen'
       setError(message)
+      console.error('Logout Fehler:', err)
     } finally {
       setLoading(false)
     }

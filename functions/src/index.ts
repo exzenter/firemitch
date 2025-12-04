@@ -1,6 +1,6 @@
 /**
  * Firebase Cloud Functions v2
- * 
+ *
  * Import function triggers from their respective submodules:
  * import {onCall} from "firebase-functions/v2/https";
  * import {onDocumentWritten} from "firebase-functions/v2/firestore";

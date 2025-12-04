@@ -80,10 +80,10 @@ function App() {
     // onAuthChange ist ein Firebase Observer
     // Er ruft den Callback bei Auth-Änderungen auf
     const unsubscribe = onAuthChange(async (firebaseUser) => {
-      // Wenn User ausgeloggt wird, entferne Online-Status
-      if (currentUserId && !firebaseUser) {
-        await setUserOffline(currentUserId)
-      }
+      // HINWEIS: setUserOffline wird NICHT hier aufgerufen!
+      // Das passiert jetzt in useAuth.logout() BEVOR signOut(),
+      // weil nach signOut der User keine Berechtigung mehr hat,
+      // sein Presence-Dokument zu löschen (Firestore Security Rules)
       
       setUser(firebaseUser)
       
@@ -110,6 +110,7 @@ function App() {
     return () => {
       unsubscribe()
       // Online-Status entfernen beim Unmount wenn User noch eingeloggt
+      // (z.B. wenn Browser-Tab geschlossen wird)
       if (currentUserId) {
         setUserOffline(currentUserId)
       }
